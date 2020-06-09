@@ -3,6 +3,7 @@ package heimdall
 import "core:sys/unix"
 import "core:fmt"
 import "core:os"
+import "core:mem"
 import "shared:inotify"
 import "path"
 
@@ -44,37 +45,52 @@ init_watcher :: proc(allocator := context.allocator) -> Watcher
      return watcher;
 }
 
-watch_directory :: proc(watcher: ^Watcher, filepath: string, mask: Event_Mask, handler : Directory_Event_Proc = nil)
+
+clone_any :: proc(a: any, allocator := context.allocator) -> any
+{
+     raw := transmute(mem.Raw_Any)a;
+     ti := type_info_of(raw.id);
+     data_clone := mem.alloc(size=ti.size, allocator=allocator);
+     mem.copy(data_clone, a.data, ti.size);
+     return mem.make_any(data_clone, raw.id);
+}
+
+watch_directory :: proc(watcher: ^Watcher, filepath: string, mask: Event_Mask, handler : Directory_Event_Proc = nil, user_data: ..any)
 {
      focus := Focus{};
      focus.directory = filepath;
      focus.mask = mask;
-     focus.variant = Directory_Focus{handler=handler};
+     
+     data_clone := make([]any, len(user_data), watcher.allocator);
+     for a, i in user_data do
+         data_clone[i] = clone_any(a, watcher.allocator);
+     focus.variant = Directory_Focus{handler=handler, user_data=data_clone};
      
      err: os.Errno;
      focus.handle, err = inotify.add_watch(watcher.handle, focus.directory, to_inotify_mask(mask));
      
-     if focus.handle not_in watcher.foci
-         {
+     if focus.handle not_in watcher.foci do
          watcher.foci[focus.handle] = make([dynamic]Focus, watcher.allocator);
-     }
      append(&watcher.foci[focus.handle], focus);
 }
 
-watch_file :: proc(watcher: ^Watcher, filepath: string, mask: Event_Mask, handler : File_Event_Proc = nil)
+
+watch_file :: proc(watcher: ^Watcher, filepath: string, mask: Event_Mask, handler: File_Event_Proc = nil, user_data: ..any)
 {
      focus := Focus{};
      focus.directory = path.dir(filepath);
      focus.mask = mask;
-     focus.variant = File_Focus{filename=path.base(filepath), handler=handler};
+     
+     data_clone := make([]any, len(user_data), watcher.allocator);
+     for a, i in user_data do
+         data_clone[i] = clone_any(a, watcher.allocator);
+     focus.variant = File_Focus{filename=path.base(filepath), handler=handler, user_data=data_clone};
      
      err: os.Errno;
      focus.handle, err = inotify.add_watch(watcher.handle, focus.directory, to_inotify_mask(mask) | {.Mask_Add});
      
-     if focus.handle not_in watcher.foci
-         {
+     if focus.handle not_in watcher.foci do
          watcher.foci[focus.handle] = make([dynamic]Focus, watcher.allocator);
-     }
      append(&watcher.foci[focus.handle], focus);
 }
 
@@ -111,7 +127,11 @@ poll_events :: proc(watcher: ^Watcher)
                      event.filename = in_event.name;
                      if v.handler != nil
                          {
-                         v.handler(event);
+                         switch kind in v.user_data[0]
+                             {
+                             case: fmt.printf("data[0] type: %T\n", kind);
+                         }
+                         v.handler(event, (v.user_data));
                          continue;
                      }
                      
@@ -121,7 +141,7 @@ poll_events :: proc(watcher: ^Watcher)
                      event.filename = in_event.name;
                      if v.handler != nil
                          {
-                         v.handler(event);
+                         v.handler(event, (v.user_data));
                          continue;
                      }
                  }

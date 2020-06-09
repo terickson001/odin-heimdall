@@ -37,17 +37,20 @@ Focus :: struct
      }
 }
 
-File_Event_Proc :: #type proc(event: Event);
+File_Event_Proc :: #type proc(event: Event, user_data: []any);
 File_Focus :: struct
 {
      filename: string,
+     
      handler: File_Event_Proc,
+     user_data: []any,
 }
 
-Directory_Event_Proc :: #type proc(event: Event);
+Directory_Event_Proc :: #type proc(event: Event, user_data: []any);
 Directory_Focus :: struct
 {
      handler: Directory_Event_Proc,
+     user_data: []any,
 }
 
 Event :: struct
