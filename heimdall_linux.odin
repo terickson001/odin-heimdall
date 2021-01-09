@@ -45,7 +45,6 @@ init_watcher :: proc(allocator := context.allocator) -> Watcher
     return watcher;
 }
 
-
 clone_any :: proc(a: any, allocator := context.allocator) -> any
 {
     raw := transmute(mem.Raw_Any)a;
@@ -77,7 +76,6 @@ watch_directory :: proc(watcher: ^Watcher, filepath: string, mask: Event_Mask, h
     }
     append(&watcher.foci[focus.handle], focus);
 }
-
 
 watch_file :: proc(watcher: ^Watcher, filepath: string, mask: Event_Mask, handler: File_Event_Proc = nil, user_data: ..any)
 {
@@ -143,10 +141,6 @@ poll_events :: proc(watcher: ^Watcher)
                     event.filename = in_event.name;
                     if v.handler != nil
                     {
-                        switch kind in v.user_data[0]
-                        {
-                            case: fmt.printf("data[0] type: %T\n", kind);
-                        }
                         v.handler(event, (v.user_data));
                         continue;
                     }
