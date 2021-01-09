@@ -62,15 +62,19 @@ watch_directory :: proc(watcher: ^Watcher, filepath: string, mask: Event_Mask, h
     focus.mask = mask;
     
     data_clone := make([]any, len(user_data), watcher.allocator);
-    for a, i in user_data do
+    for a, i in user_data 
+    {
         data_clone[i] = clone_any(a, watcher.allocator);
+    }
     focus.variant = Directory_Focus{handler=handler, user_data=data_clone};
     
     err: os.Errno;
     focus.handle, err = inotify.add_watch(watcher.handle, focus.directory, to_inotify_mask(mask));
     
-    if focus.handle not_in watcher.foci do
+    if focus.handle not_in watcher.foci 
+    {
         watcher.foci[focus.handle] = make([dynamic]Focus, watcher.allocator);
+    }
     append(&watcher.foci[focus.handle], focus);
 }
 
@@ -82,15 +86,19 @@ watch_file :: proc(watcher: ^Watcher, filepath: string, mask: Event_Mask, handle
     focus.mask = mask;
     
     data_clone := make([]any, len(user_data), watcher.allocator);
-    for a, i in user_data do
+    for a, i in user_data 
+    {
         data_clone[i] = clone_any(a, watcher.allocator);
+    }
     focus.variant = File_Focus{filename=path.base(filepath), handler=handler, user_data=data_clone};
     
     err: os.Errno;
     focus.handle, err = inotify.add_watch(watcher.handle, focus.directory, to_inotify_mask(mask) | {.Mask_Add});
     
-    if focus.handle not_in watcher.foci do
+    if focus.handle not_in watcher.foci 
+    {
         watcher.foci[focus.handle] = make([dynamic]Focus, watcher.allocator);
+    }
     append(&watcher.foci[focus.handle], focus);
 }
 
@@ -99,8 +107,10 @@ poll_events :: proc(watcher: ^Watcher)
     poll_fds := [1]inotify.Poll_Fd{};
     poll_fds[0].fd = cast(i32)watcher.handle;
     poll_fds[0].events = inotify.POLLIN;
-    if err := inotify._unix_poll(&poll_fds[0], 1, 0); err <= 0 do
+    if err := inotify._unix_poll(&poll_fds[0], 1, 0); err <= 0 
+    {
         return;
+    }
     
     if poll_fds[0].revents & inotify.POLLIN != 0
     {
@@ -108,20 +118,26 @@ poll_events :: proc(watcher: ^Watcher)
         for in_event in inotify_events
         {
             foci, ok := watcher.foci[in_event.wd];
-            if !ok do
+            if !ok 
+            {
                 continue;
+            }
             
             event := Event{};
             for focus in foci
             {
                 in_mask := from_inotify_mask(transmute(inotify.Event_Mask)in_event.mask);
-                if transmute(u8)(focus.mask & in_mask) == 0 do
+                if transmute(u8)(focus.mask & in_mask) == 0 
+                {
                     continue;
+                }
                 switch v in focus.variant
                 {
                     case File_Focus:
-                    if in_event.name != v.filename do
+                    if in_event.name != v.filename 
+                    {
                         continue;
+                    }
                     event.flags = in_mask;
                     event.focus = focus;
                     event.filename = in_event.name;
