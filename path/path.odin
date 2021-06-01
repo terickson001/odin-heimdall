@@ -1,4 +1,4 @@
-package path
+package heimdall_path
 
 @private
 is_sep :: proc(c: byte) -> bool

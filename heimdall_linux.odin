@@ -39,7 +39,7 @@ init_watcher :: proc(allocator := context.allocator) -> Watcher
 {
     watcher := Watcher{};
     watcher.handle = inotify.init();
-    watcher.foci = make(T=type_of(watcher.foci), allocator=allocator);
+    watcher.foci = make(type_of(watcher.foci), 16, allocator);
     watcher.unhandled_events = make([dynamic]Event, allocator);
     watcher.allocator = allocator;
     return watcher;
